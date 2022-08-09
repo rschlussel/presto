@@ -18,6 +18,7 @@ import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -139,6 +140,27 @@ public class Key
         concatenatedVariables.addAll(this.variables);
         concatenatedVariables.addAll(toConcatKey.variables);
         return new Key(concatenatedVariables);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(variables);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+        if (this == obj) {
+            return true;
+        }
+
+        if (obj == null || this.getClass() != obj.getClass()) {
+            return false;
+        }
+
+        Key other = (Key) obj;
+        return Objects.equals(this.variables, other.variables);
     }
 
     @Override

@@ -25,7 +25,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
  */
 public class MaxCardProperty
 {
-    private Optional<Long> value;
+    private final Optional<Long> value;
 
     public MaxCardProperty()
     {
@@ -35,6 +35,11 @@ public class MaxCardProperty
     public MaxCardProperty(Long value)
     {
         this.value = Optional.of(value);
+    }
+
+    public Optional<Long> getValue()
+    {
+        return value;
     }
 
     /**
@@ -49,37 +54,6 @@ public class MaxCardProperty
     {
         return (!value.isPresent() && !otherMaxCardProperty.value.isPresent()) ||
                 (value.isPresent() && (!otherMaxCardProperty.value.isPresent() || (otherMaxCardProperty.value.get() >= value.get())));
-    }
-
-    /**
-     * Updates this maxcard with the provided value. Will change the current value only if the current value is unknown
-     * or the provided value is known and smaller than the current setting.
-     *
-     * @param value
-     */
-    public void update(long value)
-    {
-        if (!this.value.isPresent() || this.value.get().compareTo(value) > 0) {
-            this.value = Optional.of(value);
-        }
-    }
-
-    /**
-     * Updates this maxcard with the provided maxcard property. Will change the current value only if the current value is unknown
-     * or the provided value is known and smaller than the current setting.
-     *
-     * @param sourceMaxCardProperty
-     */
-    public void update(MaxCardProperty sourceMaxCardProperty)
-    {
-        if (sourceMaxCardProperty.value.isPresent()) {
-            if (this.value.isPresent()) {
-                this.value = Optional.of(Long.min(this.value.get(), sourceMaxCardProperty.value.get()));
-            }
-            else {
-                this.value = Optional.of(sourceMaxCardProperty.value.get());
-            }
-        }
     }
 
     /**
@@ -109,22 +83,21 @@ public class MaxCardProperty
     }
 
     /**
-     * Performs the product of this maxcard and a provided maxcard if both have known values.
+     * Performs the product of 2 maxCards if both have known values.
      * Used to compute the maxcard of a join.
      *
-     * @param maxCardProperty
+     * @param maxCard1
+     * @param maxCard2
      */
-    public void multiply(MaxCardProperty maxCardProperty)
+    public static MaxCardProperty multiply(MaxCardProperty maxCard1, MaxCardProperty maxCard2)
     {
         //the product of empty and anything else is empty
-        if (!maxCardProperty.value.isPresent()) {
-            this.value = Optional.empty();
-            return;
+        if (!maxCard1.getValue().isPresent() || !maxCard2.getValue().isPresent()) {
+            return new MaxCardProperty();
         }
         //new value is present and so multiply the current value if it is present
-        if (this.value.isPresent()) {
-            this.value = Optional.of(Long.valueOf(this.value.get() * maxCardProperty.value.get()));
-        }
+
+        return new MaxCardProperty(maxCard1.getValue().get() * maxCard2.getValue().get());
     }
 
     @Override

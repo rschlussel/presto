@@ -13,13 +13,15 @@
  */
 package com.facebook.presto.sql.planner.iterative.properties;
 
-import java.util.HashSet;
+import com.google.common.collect.ImmutableSet;
+
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static java.util.Objects.requireNonNull;
+import static org.glassfish.jersey.internal.util.collection.ImmutableCollectors.toImmutableSet;
 
 /**
  * Represents a collection of primary or unique key constraints that hold for a final or
@@ -31,12 +33,17 @@ public class KeyProperty
 
     public KeyProperty()
     {
-        this.keys = new HashSet<>();
+        this.keys = ImmutableSet.of();
     }
 
     public KeyProperty(Set<Key> keys)
     {
-        this.keys = keys;
+        this.keys = ImmutableSet.copyOf(requireNonNull(keys, "keys is null"));
+    }
+
+    public Set<Key> getKeys()
+    {
+        return ImmutableSet.copyOf(keys);
     }
 
     /**
@@ -67,69 +74,6 @@ public class KeyProperty
     }
 
     /**
-     * Adds a set of keys to this key property.
-     *
-     * @param keys
-     */
-    public void addKeys(Set<Key> keys)
-    {
-        requireNonNull(keys, "keys is null");
-        keys.stream().forEach(k -> addKey(k));
-    }
-
-    /**
-     * Adds the keys from the provided key property to this key property.
-     *
-     * @param keyProperty
-     */
-    public void addKeys(KeyProperty keyProperty)
-    {
-        requireNonNull(keyProperty, "keyProperty is null");
-        addKeys(keyProperty.keys);
-    }
-
-    /**
-     * Adds a new key to this key property.
-     *
-     * @param key
-     */
-    public void addKey(Key key)
-    {
-        requireNonNull(key, "key is null");
-        addNonRedundantKey(key);
-    }
-
-    /**
-     * Adds a key to this key property while enforcing the constraint that no
-     * key is redundant with respect to another.
-     * E.g. if {orderkey} was an existing key then the key {orderkey, orderpriority}
-     * would represent a redundant key. The inverse is true, an existing key
-     * can be removed by a new key it if is redundant with respect to the new key.
-     *
-     * @param newKey
-     */
-    private void addNonRedundantKey(Key newKey)
-    {
-        requireNonNull(newKey, "newKey is null");
-        Set<Key> removedKeys = new HashSet<>();
-        for (Key key : keys) {
-            //if the new key >= key don't add it
-            if (key.keySatisifiesRequirement(newKey)) {
-                return;
-            }
-
-            //if the new key <= key1 remove existing key. note that if this is true the new key will be added as it
-            //cannot be a superset of another key2 otherwise key2 <= key1 which violates the key property invariant
-            if (newKey.keySatisifiesRequirement(key)) {
-                removedKeys.add(key);
-            }
-        }
-        //new key not >= existing key
-        keys.add(newKey);
-        keys.removeAll(removedKeys);
-    }
-
-    /**
      * Reduces key property to a concise cannonical form wherein each individual key is
      * reduced to a canonical form by removing redundant variables and replacing any remaining variables
      * with their equivalence class heads. Moreover, no keys in the normalized key
@@ -144,17 +88,38 @@ public class KeyProperty
     public Optional<KeyProperty> normalize(EquivalenceClassProperty equivalenceClassProperty)
     {
         requireNonNull(equivalenceClassProperty, "equivalenceClassProperty is null");
-        KeyProperty result = new KeyProperty();
-        for (Key key : this.keys) {
+        Set<Key> nonRedundantKeys = removeRedundantKeys(keys);
+        ImmutableSet.Builder<Key> normalizedKeys = ImmutableSet.<Key>builder();
+        for (Key key : nonRedundantKeys) {
             Optional<Key> normalizedKey = key.normalize(equivalenceClassProperty);
             if (!normalizedKey.isPresent()) {
                 return Optional.empty();
             }
             else {
-                result.addKey(normalizedKey.get());
+                normalizedKeys.add(normalizedKey.get());
             }
         }
-        return Optional.of(result);
+        return Optional.of(new KeyProperty(normalizedKeys.build()));
+    }
+
+    /**
+     * Takes a set of keys and returns a set with redundant keys removed
+     * E.g. if {orderkey} is in the set, then the key {orderkey, orderpriority}
+     * would represent a redundant key.
+     *
+     * @param keys
+     */
+    private static Set<Key> removeRedundantKeys(Set<Key> keys)
+    {
+        return keys.stream()
+                .filter(key -> isRedundant(key, keys))
+                .collect(toImmutableSet());
+    }
+
+    public static boolean isRedundant(Key keyToCheck, Set<Key> keys)
+    {
+        return keys.stream().anyMatch(keyToCompare ->
+                !keyToCheck.equals(keyToCompare) && keyToCompare.keySatisifiesRequirement(keyToCheck));
     }
 
     /**
@@ -168,22 +133,20 @@ public class KeyProperty
     public KeyProperty project(LogicalPropertiesImpl.InverseVariableMappingsWithEquivalence inverseVariableMappings)
     {
         requireNonNull(inverseVariableMappings, "inverseVariableMappings is null");
-        KeyProperty result = new KeyProperty();
-        keys.stream().forEach(key -> {
-            Optional<Key> projectedKey = key.project(inverseVariableMappings);
-            if (projectedKey.isPresent()) {
-                result.addKey(projectedKey.get());
-            }
-        });
-        return result;
+        Set<Key> keys = this.keys.stream().map(key -> key.project(inverseVariableMappings))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(toImmutableSet());
+
+        return new KeyProperty(keys);
     }
 
     /**
      * Empties all keys from the key property.
      */
-    public void empty()
+    public boolean isEmpty()
     {
-        keys.clear();
+        return keys.isEmpty();
     }
 
     /**
@@ -197,13 +160,13 @@ public class KeyProperty
     public KeyProperty concat(KeyProperty toConcatKeyProp)
     {
         requireNonNull(toConcatKeyProp, "toConcatKeyProp is null");
-        KeyProperty result = new KeyProperty();
+        ImmutableSet.Builder<Key> result = ImmutableSet.builder();
         for (Key thisKey : this.keys) {
             for (Key toConcatKey : toConcatKeyProp.keys) {
-                result.addKey(thisKey.concat(toConcatKey));
+                result.add(thisKey.concat(toConcatKey));
             }
         }
-        return result;
+        return new KeyProperty(result.build());
     }
 
     @Override
