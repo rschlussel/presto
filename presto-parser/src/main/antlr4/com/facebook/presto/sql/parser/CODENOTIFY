@@ -1,0 +1,5 @@
+# notify the following people for changes to the sql language
+# see https://github.com/marketplace/actions/codenotify#codenotify-files for more info
+# about CODENOTIFY files
+
+SqlBase.g4 @rschlussel @kaikalur
