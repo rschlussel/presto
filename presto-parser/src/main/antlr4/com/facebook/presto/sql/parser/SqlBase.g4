@@ -342,6 +342,7 @@ booleanExpression
     | left=booleanExpression operator=OR right=booleanExpression   #logicalBinary
     ;
 
+
 // workaround for https://github.com/antlr/antlr4/issues/780
 predicate[ParserRuleContext value]
     : comparisonOperator right=valueExpression                            #comparison
