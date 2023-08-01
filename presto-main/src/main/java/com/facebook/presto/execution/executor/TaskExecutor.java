@@ -136,7 +136,7 @@ public class TaskExecutor
     /**
      * Splits waiting for a runner thread.
      */
-    private final MultilevelSplitQueue waitingSplits;
+    private final SplitQueue waitingSplits;
 
     /**
      * Per query priority trackers
@@ -181,7 +181,7 @@ public class TaskExecutor
     private volatile boolean closed;
 
     @Inject
-    public TaskExecutor(TaskManagerConfig config, EmbedVersion embedVersion, MultilevelSplitQueue splitQueue)
+    public TaskExecutor(TaskManagerConfig config, EmbedVersion embedVersion, SplitQueue splitQueue)
     {
         this(requireNonNull(config, "config is null").getMaxWorkerThreads(),
                 config.getMinDrivers(),
@@ -225,7 +225,7 @@ public class TaskExecutor
             int guaranteedNumberOfDriversPerTask,
             int maximumNumberOfDriversPerTask,
             TaskPriorityTracking taskPriorityTracking,
-            MultilevelSplitQueue splitQueue,
+            SplitQueue splitQueue,
             Ticker ticker)
     {
         this(
@@ -253,7 +253,7 @@ public class TaskExecutor
             Predicate<List<StackTraceElement>> interruptibleSplitPredicate,
             Duration interruptSplitInterval,
             EmbedVersion embedVersion,
-            MultilevelSplitQueue splitQueue,
+            SplitQueue splitQueue,
             Ticker ticker)
     {
         checkArgument(runnerThreads > 0, "runnerThreads must be at least 1");

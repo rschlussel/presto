@@ -39,6 +39,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 @ThreadSafe
 public class MultilevelSplitQueue
+        implements SplitQueue
 {
     static final int[] LEVEL_THRESHOLD_SECONDS = {0, 1, 10, 60, 300};
     static final long LEVEL_CONTRIBUTION_CAP = SECONDS.toNanos(30);
@@ -95,6 +96,7 @@ public class MultilevelSplitQueue
      * To prevent this we set the scheduled time for levels which were empty to the expected
      * scheduled time.
      */
+    @Override
     public void offer(PrioritizedSplitRunner split)
     {
         checkArgument(split != null, "split is null");
@@ -122,6 +124,7 @@ public class MultilevelSplitQueue
         }
     }
 
+    @Override
     public PrioritizedSplitRunner take()
             throws InterruptedException
     {
@@ -214,6 +217,7 @@ public class MultilevelSplitQueue
      *
      * @return the new priority for the task
      */
+    @Override
     public Priority updatePriority(Priority oldPriority, long quantaNanos, long scheduledNanos)
     {
         int oldLevel = oldPriority.getLevel();
@@ -244,6 +248,7 @@ public class MultilevelSplitQueue
         return new Priority(newLevel, newLevelMinPriority + remainingTaskTime);
     }
 
+    @Override
     public void remove(PrioritizedSplitRunner split)
     {
         checkArgument(split != null, "split is null");
@@ -258,6 +263,7 @@ public class MultilevelSplitQueue
         }
     }
 
+    @Override
     public void removeAll(Collection<PrioritizedSplitRunner> splits)
     {
         lock.lock();
@@ -271,12 +277,14 @@ public class MultilevelSplitQueue
         }
     }
 
+    @Override
     public long getLevelMinPriority(int level, long taskThreadUsageNanos)
     {
         levelMinPriority[level].compareAndSet(-1, taskThreadUsageNanos);
         return levelMinPriority[level].get();
     }
 
+    @Override
     public int size()
     {
         lock.lock();

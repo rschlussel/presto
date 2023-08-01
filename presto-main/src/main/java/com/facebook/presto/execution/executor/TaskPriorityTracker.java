@@ -19,14 +19,14 @@ import static java.util.Objects.requireNonNull;
 
 public class TaskPriorityTracker
 {
-    private final MultilevelSplitQueue splitQueue;
+    private final SplitQueue splitQueue;
 
     @GuardedBy("this")
     private long scheduledNanos;
     @GuardedBy("this")
     private volatile Priority priority = new Priority(0, 0);
 
-    public TaskPriorityTracker(MultilevelSplitQueue splitQueue)
+    public TaskPriorityTracker(SplitQueue splitQueue)
     {
         this.splitQueue = requireNonNull(splitQueue, "splitQueue is null");
     }

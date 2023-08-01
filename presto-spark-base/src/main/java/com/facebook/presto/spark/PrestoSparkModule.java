@@ -55,6 +55,7 @@ import com.facebook.presto.execution.TaskManager;
 import com.facebook.presto.execution.TaskManagerConfig;
 import com.facebook.presto.execution.TaskSource;
 import com.facebook.presto.execution.executor.MultilevelSplitQueue;
+import com.facebook.presto.execution.executor.SplitQueue;
 import com.facebook.presto.execution.executor.TaskExecutor;
 import com.facebook.presto.execution.resourceGroups.InternalResourceGroupManager;
 import com.facebook.presto.execution.resourceGroups.ResourceGroupManager;
@@ -395,6 +396,7 @@ public class PrestoSparkModule
         // task executor
         binder.bind(EmbedVersion.class).in(Scopes.SINGLETON);
         binder.bind(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
+        binder.bind(SplitQueue.class).to(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
         binder.bind(TaskExecutor.class).in(Scopes.SINGLETON);
 
         // data stream provider
