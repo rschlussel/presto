@@ -74,6 +74,11 @@ public class DriverContext
     private final AtomicReference<BlockedMonitor> blockedMonitor = new AtomicReference<>();
     private final AtomicLong blockedWallNanos = new AtomicLong();
 
+    public AtomicReference<DateTime> getExecutionStartTime()
+    {
+        return executionStartTime;
+    }
+
     private final AtomicReference<DateTime> executionStartTime = new AtomicReference<>();
     private final AtomicReference<DateTime> executionEndTime = new AtomicReference<>();
 

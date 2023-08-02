@@ -136,13 +136,16 @@ public class MultilevelSplitQueue
                     notEmpty.await();
                 }
 
-                if (result.updateLevelPriority()) {
+                int oldLevel = result.getPriority().getLevel();
+                result.updatePriority();
+                int newLevel = result.getPriority().getLevel();
+                if (newLevel != oldLevel) {
                     offer(result);
                     continue;
                 }
 
                 int selectedLevel = result.getPriority().getLevel();
-                levelMinPriority[selectedLevel].set(result.getPriority().getLevelPriority());
+                levelMinPriority[selectedLevel].set(((MultiLevelSplitQueuePriority) result.getPriority()).getLevelPriority());
                 selectedLevelCounters.get(selectedLevel).update(1);
 
                 return result;
@@ -217,8 +220,7 @@ public class MultilevelSplitQueue
      *
      * @return the new priority for the task
      */
-    @Override
-    public Priority updatePriority(Priority oldPriority, long quantaNanos, long scheduledNanos)
+    public MultiLevelSplitQueuePriority updatePriority(MultiLevelSplitQueuePriority oldPriority, long quantaNanos, long scheduledNanos)
     {
         int oldLevel = oldPriority.getLevel();
         int newLevel = computeLevel(scheduledNanos);
@@ -227,7 +229,7 @@ public class MultilevelSplitQueue
 
         if (oldLevel == newLevel) {
             addLevelTime(oldLevel, levelContribution);
-            return new Priority(oldLevel, oldPriority.getLevelPriority() + quantaNanos);
+            return new MultiLevelSplitQueuePriority(oldLevel, oldPriority.getLevelPriority() + quantaNanos);
         }
 
         long remainingLevelContribution = levelContribution;
@@ -245,7 +247,7 @@ public class MultilevelSplitQueue
 
         addLevelTime(newLevel, remainingLevelContribution);
         long newLevelMinPriority = getLevelMinPriority(newLevel, scheduledNanos);
-        return new Priority(newLevel, newLevelMinPriority + remainingTaskTime);
+        return new MultiLevelSplitQueuePriority(newLevel, newLevelMinPriority + remainingTaskTime);
     }
 
     @Override
@@ -277,7 +279,6 @@ public class MultilevelSplitQueue
         }
     }
 
-    @Override
     public long getLevelMinPriority(int level, long taskThreadUsageNanos)
     {
         levelMinPriority[level].compareAndSet(-1, taskThreadUsageNanos);

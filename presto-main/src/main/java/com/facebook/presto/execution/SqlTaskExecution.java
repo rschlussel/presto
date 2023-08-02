@@ -1036,6 +1036,7 @@ public class SqlTaskExecution
             this.lifespan = requireNonNull(lifespan, "lifespan is null");
         }
 
+        @Override
         public synchronized DriverContext getDriverContext()
         {
             if (driver == null) {

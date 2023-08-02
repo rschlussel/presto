@@ -14,6 +14,7 @@
 package com.facebook.presto.execution.executor;
 
 import com.facebook.presto.execution.SplitRunner;
+import com.facebook.presto.operator.DriverContext;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -201,6 +202,12 @@ abstract class SimulationSplit
         }
 
         @Override
+        public DriverContext getDriverContext()
+        {
+            return null;
+        }
+
+        @Override
         public String getInfo()
         {
             double pct = (100.0 * getCompletedProcessNanos() / super.scheduledTimeNanos);
@@ -276,6 +283,12 @@ abstract class SimulationSplit
                 return doneFuture;
             }
             return future;
+        }
+
+        @Override
+        public DriverContext getDriverContext()
+        {
+            return null;
         }
 
         @Override

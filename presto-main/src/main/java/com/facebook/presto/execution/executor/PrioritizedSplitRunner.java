@@ -17,19 +17,25 @@ import com.facebook.airlift.log.Logger;
 import com.facebook.airlift.stats.CounterStat;
 import com.facebook.airlift.stats.TimeStat;
 import com.facebook.presto.execution.SplitRunner;
+import com.facebook.presto.operator.DriverContext;
+import com.facebook.presto.operator.PipelineContext;
+import com.facebook.presto.operator.TaskContext;
 import com.google.common.base.Ticker;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.airlift.units.Duration;
+import org.joda.time.DateTime;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.facebook.presto.operator.Operator.NOT_BLOCKED;
+import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 public class PrioritizedSplitRunner
@@ -57,7 +63,7 @@ public class PrioritizedSplitRunner
 
     private final AtomicBoolean destroyed = new AtomicBoolean();
 
-    protected final AtomicReference<Priority> priority = new AtomicReference<>(new Priority(0, 0));
+    protected final AtomicReference<Priority> priority = new AtomicReference<>(QueryFifoPriority.LOWEST_PRIORITY);
 
     protected final AtomicLong lastRun = new AtomicLong();
     private final AtomicLong lastReady = new AtomicLong();
@@ -83,17 +89,17 @@ public class PrioritizedSplitRunner
             TimeStat blockedQuantaWallTime,
             TimeStat unblockedQuantaWallTime)
     {
-        this.taskHandle = taskHandle;
+        this.taskHandle = requireNonNull(taskHandle, "taskHandle is null");
         this.splitId = taskHandle.getNextSplitId();
-        this.split = split;
-        this.ticker = ticker;
+        this.split = requireNonNull(split, "split is null");
+        this.ticker = requireNonNull(ticker, "ticker is null");
         this.workerId = NEXT_WORKER_ID.getAndIncrement();
-        this.globalCpuTimeMicros = globalCpuTimeMicros;
-        this.globalScheduledTimeMicros = globalScheduledTimeMicros;
-        this.blockedQuantaWallTime = blockedQuantaWallTime;
-        this.unblockedQuantaWallTime = unblockedQuantaWallTime;
+        this.globalCpuTimeMicros = requireNonNull(globalCpuTimeMicros, "globalCpuTimeMicros is null");
+        this.globalScheduledTimeMicros = requireNonNull(globalScheduledTimeMicros, "globalScheduledTimeMicros is null");
+        this.blockedQuantaWallTime = requireNonNull(blockedQuantaWallTime, "blockedQuantaWallTime is null");
+        this.unblockedQuantaWallTime = requireNonNull(unblockedQuantaWallTime, "unblockedQuantaWallTime is null");
 
-        this.updateLevelPriority();
+        updatePriority();
     }
 
     public TaskHandle getTaskHandle()
@@ -169,7 +175,15 @@ public class PrioritizedSplitRunner
             long quantaScheduledNanos = endNanos - startNanos;
             scheduledNanos.addAndGet(quantaScheduledNanos);
 
-            priority.set(taskHandle.addScheduledNanos(quantaScheduledNanos));
+            if (priority.get() instanceof MultiLevelSplitQueuePriority) {
+                priority.set(taskHandle.addScheduledNanos(quantaScheduledNanos));
+            }
+            else {
+                // for QueryFifo, add the scheduled nanos for logging,
+                // but it will return a null priority since the priority logic is all here
+                taskHandle.addScheduledNanos(quantaScheduledNanos);
+                updatePriority();
+            }
             lastRun.set(endNanos);
 
             Duration wallDuration = new Duration(quantaScheduledNanos, NANOSECONDS);
@@ -204,11 +218,29 @@ public class PrioritizedSplitRunner
      *
      * @return true if the level changed.
      */
-    public boolean updateLevelPriority()
+
+    public void updatePriority()
     {
-        Priority newPriority = taskHandle.getPriority();
-        Priority oldPriority = priority.getAndSet(newPriority);
-        return newPriority.getLevel() != oldPriority.getLevel();
+        // TODO: hacky way to differentiate QueryFifo from MLSQ
+        try {
+            //MLSQ
+            priority.getAndSet(taskHandle.getPriority());
+        }
+        catch (UnsupportedOperationException e) {
+            // Query FIFO
+            DriverContext driverContext = split.getDriverContext();
+            PipelineContext pipelineContext = driverContext == null ? null : driverContext.getPipelineContext();
+            TaskContext taskContext = pipelineContext == null ? null : pipelineContext.getTaskContext();
+            String queryId = taskHandle.getTaskId().getQueryId().getId();
+
+            // queryids are assigned in chronological order of creation (most of queryid is the date / time the query was created)
+            // for testing, this is a good enough proxy for query start time and will be consistent across workers which is nice.
+            this.priority.set(new QueryFifoPriority(
+                    Optional.ofNullable(driverContext == null ? null : split.getDriverContext().getExecutionStartTime().get()).orElse(new DateTime(Long.MAX_VALUE)).getMillis(),
+                    Optional.ofNullable(pipelineContext == null ? null : pipelineContext.getExecutionStartTime().get()).orElse(new DateTime(Long.MAX_VALUE)).getMillis(),
+                    Optional.ofNullable(taskContext == null ? null : taskContext.getExecutionStartTime().get()).orElse(new DateTime(Long.MAX_VALUE)).getMillis(),
+                    Long.parseLong(queryId.substring(0, queryId.lastIndexOf('_')).replaceAll("_", ""))));
+        }
     }
 
     /**
@@ -219,13 +251,15 @@ public class PrioritizedSplitRunner
      */
     public void resetLevelPriority()
     {
-        priority.set(taskHandle.resetLevelPriority());
+        if (priority.get() instanceof MultiLevelSplitQueuePriority) {
+            priority.set(taskHandle.resetLevelPriority());
+        }
     }
 
     @Override
     public int compareTo(PrioritizedSplitRunner o)
     {
-        int result = Long.compare(priority.get().getLevelPriority(), o.getPriority().getLevelPriority());
+        int result = priority.get().compareTo(o.getPriority());
         if (result != 0) {
             return result;
         }

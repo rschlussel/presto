@@ -11,55 +11,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.facebook.presto.execution.executor;
 
-import javax.annotation.concurrent.GuardedBy;
-
-import static java.util.Objects.requireNonNull;
-
-public class TaskPriorityTracker
+public interface TaskPriorityTracker
 {
-    private final SplitQueue splitQueue;
+    Priority updatePriority(long durationNanos);
 
-    @GuardedBy("this")
-    private long scheduledNanos;
-    @GuardedBy("this")
-    private volatile Priority priority = new Priority(0, 0);
+    Priority resetPriority();
 
-    public TaskPriorityTracker(SplitQueue splitQueue)
-    {
-        this.splitQueue = requireNonNull(splitQueue, "splitQueue is null");
-    }
+    long getScheduledNanos();
 
-    public synchronized Priority updatePriority(long durationNanos)
-    {
-        scheduledNanos += durationNanos;
-
-        Priority newPriority = splitQueue.updatePriority(priority, durationNanos, scheduledNanos);
-
-        priority = newPriority;
-        return newPriority;
-    }
-
-    public synchronized Priority resetLevelPriority()
-    {
-        long levelMinPriority = splitQueue.getLevelMinPriority(priority.getLevel(), scheduledNanos);
-        if (priority.getLevelPriority() < levelMinPriority) {
-            Priority newPriority = new Priority(priority.getLevel(), levelMinPriority);
-            priority = newPriority;
-            return newPriority;
-        }
-
-        return priority;
-    }
-
-    public synchronized long getScheduledNanos()
-    {
-        return scheduledNanos;
-    }
-
-    public synchronized Priority getPriority()
-    {
-        return priority;
-    }
+    Priority getPriority();
 }

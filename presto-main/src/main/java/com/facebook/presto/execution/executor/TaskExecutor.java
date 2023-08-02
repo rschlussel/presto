@@ -30,9 +30,6 @@ import com.facebook.presto.spi.QueryId;
 import com.facebook.presto.version.EmbedVersion;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ticker;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.units.Duration;
@@ -94,8 +91,8 @@ public class TaskExecutor
     private static final Duration LONG_SPLIT_WARNING_THRESHOLD = new Duration(600, SECONDS);
     // Interrupt a split if it is running longer than this AND it's blocked on something known
     private static final Predicate<List<StackTraceElement>> DEFAULT_INTERRUPTIBLE_SPLIT_PREDICATE = elements ->
-                    elements.stream()
-                            .anyMatch(element -> element.getClassName().equals(JoniRegexpFunctions.class.getName()));
+            elements.stream()
+                    .anyMatch(element -> element.getClassName().equals(JoniRegexpFunctions.class.getName()));
     private static final Duration DEFAULT_INTERRUPT_SPLIT_INTERVAL = new Duration(60, SECONDS);
 
     private static final AtomicLong NEXT_RUNNER_ID = new AtomicLong();
@@ -276,20 +273,23 @@ public class TaskExecutor
         this.maximumNumberOfDriversPerTask = maximumNumberOfDriversPerTask;
         this.waitingSplits = requireNonNull(splitQueue, "splitQueue is null");
         Function<QueryId, TaskPriorityTracker> taskPriorityTrackerFactory;
-        switch (taskPriorityTracking) {
-            case TASK_FAIR:
-                taskPriorityTrackerFactory = (queryId) -> new TaskPriorityTracker(splitQueue);
-                break;
-            case QUERY_FAIR:
-                LoadingCache<QueryId, TaskPriorityTracker> cache = CacheBuilder.newBuilder()
-                        .weakValues()
-                        .build(CacheLoader.from(queryId -> new TaskPriorityTracker(splitQueue)));
-                taskPriorityTrackerFactory = cache::getUnchecked;
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected taskPriorityTracking: " + taskPriorityTracking);
-        }
-        this.taskPriorityTrackerFactory = taskPriorityTrackerFactory;
+//        switch (taskPriorityTracking) {
+//            case TASK_FAIR:
+//                taskPriorityTrackerFactory = (queryId) -> new MultilevelSplitQueueTaskPriorityTracker((MultilevelSplitQueue) splitQueue);
+//                break;
+//            case QUERY_FAIR:
+//                LoadingCache<QueryId, TaskPriorityTracker> cache = CacheBuilder.newBuilder()
+//                        .weakValues()
+//                        .build(CacheLoader.from(queryId -> new MultilevelSplitQueueTaskPriorityTracker((MultilevelSplitQueue) splitQueue)));
+//                taskPriorityTrackerFactory = cache::getUnchecked;
+//                break;
+//            case QUERY_FIFO:
+//                taskPriorityTrackerFactory = (queryId -> new QueryFifoPriorityTracker());
+//                break;
+//            default:
+//                throw new IllegalArgumentException("Unexpected taskPriorityTracking: " + taskPriorityTracking);
+//        }
+        this.taskPriorityTrackerFactory = queryId -> new QueryFifoPriorityTracker();
         this.tasks = new LinkedList<>();
         this.interruptRunawaySplitsTimeout = interruptRunawaySplitsTimeout;
         this.interruptibleSplitPredicate = interruptibleSplitPredicate;

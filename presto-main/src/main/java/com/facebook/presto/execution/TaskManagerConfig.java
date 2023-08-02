@@ -560,6 +560,7 @@ public class TaskManagerConfig
     {
         TASK_FAIR,
         QUERY_FAIR,
+        QUERY_FIFO
     }
 
     @MinDuration("1s")

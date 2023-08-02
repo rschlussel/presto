@@ -16,6 +16,7 @@ package com.facebook.presto.execution.executor;
 import com.facebook.airlift.testing.TestingTicker;
 import com.facebook.presto.execution.SplitRunner;
 import com.facebook.presto.execution.TaskId;
+import com.facebook.presto.operator.DriverContext;
 import com.facebook.presto.server.ServerConfig;
 import com.facebook.presto.version.EmbedVersion;
 import com.google.common.base.Ticker;
@@ -343,8 +344,8 @@ public class TestTaskExecutor
     public void testLevelContributionCap()
     {
         MultilevelSplitQueue splitQueue = new MultilevelSplitQueue(2);
-        TaskHandle handle0 = new TaskHandle(new TaskId("test0", 0, 0, 0, 0), new TaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
-        TaskHandle handle1 = new TaskHandle(new TaskId("test1", 0, 0, 0, 0), new TaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
+        TaskHandle handle0 = new TaskHandle(new TaskId("test0", 0, 0, 0, 0), new MultilevelSplitQueueTaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
+        TaskHandle handle1 = new TaskHandle(new TaskId("test1", 0, 0, 0, 0), new MultilevelSplitQueueTaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
 
         for (int i = 0; i < (LEVEL_THRESHOLD_SECONDS.length - 1); i++) {
             long levelAdvanceTime = SECONDS.toNanos(LEVEL_THRESHOLD_SECONDS[i + 1] - LEVEL_THRESHOLD_SECONDS[i]);
@@ -363,7 +364,7 @@ public class TestTaskExecutor
     public void testUpdateLevelWithCap()
     {
         MultilevelSplitQueue splitQueue = new MultilevelSplitQueue(2);
-        TaskHandle handle0 = new TaskHandle(new TaskId("test0", 0, 0, 0, 0), new TaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
+        TaskHandle handle0 = new TaskHandle(new TaskId("test0", 0, 0, 0, 0), new MultilevelSplitQueueTaskPriorityTracker(splitQueue), () -> 1, 1, new Duration(1, SECONDS), OptionalInt.empty());
 
         long quantaNanos = MINUTES.toNanos(10);
         handle0.addScheduledNanos(quantaNanos);
@@ -586,6 +587,12 @@ public class TestTaskExecutor
         }
 
         @Override
+        public DriverContext getDriverContext()
+        {
+            return null;
+        }
+
+        @Override
         public String getInfo()
         {
             return "testing-split";
@@ -637,6 +644,12 @@ public class TestTaskExecutor
             }
             interrupted.set(true);
             return Futures.immediateFuture(null);
+        }
+
+        @Override
+        public DriverContext getDriverContext()
+        {
+            return null;
         }
 
         @Override

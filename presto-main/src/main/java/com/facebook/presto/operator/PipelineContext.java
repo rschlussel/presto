@@ -69,6 +69,11 @@ public class PipelineContext
     private final AtomicInteger completedDrivers = new AtomicInteger();
     private final AtomicLong completedSplitsWeight = new AtomicLong();
 
+    public AtomicReference<DateTime> getExecutionStartTime()
+    {
+        return executionStartTime;
+    }
+
     private final AtomicReference<DateTime> executionStartTime = new AtomicReference<>();
     private final AtomicReference<DateTime> lastExecutionStartTime = new AtomicReference<>();
     private final AtomicReference<DateTime> lastExecutionEndTime = new AtomicReference<>();

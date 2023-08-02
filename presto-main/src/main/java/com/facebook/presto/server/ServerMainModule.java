@@ -66,7 +66,7 @@ import com.facebook.presto.execution.TaskSource;
 import com.facebook.presto.execution.TaskStatus;
 import com.facebook.presto.execution.TaskThresholdMemoryRevokingScheduler;
 import com.facebook.presto.execution.buffer.SpoolingOutputBufferFactory;
-import com.facebook.presto.execution.executor.MultilevelSplitQueue;
+import com.facebook.presto.execution.executor.QueryFifoSplitQueue;
 import com.facebook.presto.execution.executor.SplitQueue;
 import com.facebook.presto.execution.executor.TaskExecutor;
 import com.facebook.presto.execution.scheduler.FlatNetworkTopology;
@@ -493,9 +493,9 @@ public class ServerMainModule
         newExporter(binder).export(TaskManager.class).withGeneratedName();
         binder.bind(TaskExecutor.class).in(Scopes.SINGLETON);
         newExporter(binder).export(TaskExecutor.class).withGeneratedName();
-        binder.bind(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
-        binder.bind(SplitQueue.class).to(MultilevelSplitQueue.class).in(Scopes.SINGLETON);
-        newExporter(binder).export(MultilevelSplitQueue.class).withGeneratedName();
+        binder.bind(QueryFifoSplitQueue.class).in(Scopes.SINGLETON);
+        binder.bind(SplitQueue.class).to(QueryFifoSplitQueue.class).in(Scopes.SINGLETON);
+        newExporter(binder).export(QueryFifoSplitQueue.class).withGeneratedName();
         binder.bind(LocalExecutionPlanner.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(FileFragmentResultCacheConfig.class);
         binder.bind(FragmentCacheStats.class).in(Scopes.SINGLETON);
@@ -506,6 +506,7 @@ public class ServerMainModule
         binder.bind(PageFunctionCompiler.class).in(Scopes.SINGLETON);
         newExporter(binder).export(PageFunctionCompiler.class).withGeneratedName();
         configBinder(binder).bindConfig(TaskManagerConfig.class);
+
         binder.bind(IndexJoinLookupStats.class).in(Scopes.SINGLETON);
         newExporter(binder).export(IndexJoinLookupStats.class).withGeneratedName();
         binder.bind(AsyncHttpExecutionMBean.class).in(Scopes.SINGLETON);

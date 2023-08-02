@@ -77,7 +77,7 @@ public class TaskHandle
 
     public synchronized Priority resetLevelPriority()
     {
-        return priorityTracker.resetLevelPriority();
+        return priorityTracker.resetPriority();
     }
 
     public boolean isDestroyed()

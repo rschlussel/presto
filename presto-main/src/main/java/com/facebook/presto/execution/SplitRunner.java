@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.execution;
 
+import com.facebook.presto.operator.DriverContext;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.airlift.units.Duration;
 
@@ -24,6 +25,8 @@ public interface SplitRunner
     boolean isFinished();
 
     ListenableFuture<?> processFor(Duration duration);
+
+    DriverContext getDriverContext();
 
     String getInfo();
 

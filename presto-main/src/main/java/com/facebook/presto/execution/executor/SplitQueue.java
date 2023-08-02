@@ -14,30 +14,18 @@
 
 package com.facebook.presto.execution.executor;
 
-import com.facebook.airlift.stats.CounterStat;
-import org.weakref.jmx.Managed;
-import org.weakref.jmx.Nested;
-
 import java.util.Collection;
-
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 public interface SplitQueue
 {
-
     void offer(PrioritizedSplitRunner split);
 
     PrioritizedSplitRunner take()
             throws InterruptedException;
 
-    Priority updatePriority(Priority oldPriority, long quantaNanos, long scheduledNanos);
-
     void remove(PrioritizedSplitRunner split);
 
     void removeAll(Collection<PrioritizedSplitRunner> splits);
 
-    long getLevelMinPriority(int level, long taskThreadUsageNanos);
-
     int size();
-
 }

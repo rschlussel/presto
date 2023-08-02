@@ -442,6 +442,7 @@ public class PrestoSparkTaskExecution
             this.scheduledSplits = scheduledSplits;
         }
 
+        @Override
         public synchronized DriverContext getDriverContext()
         {
             if (driver == null) {
