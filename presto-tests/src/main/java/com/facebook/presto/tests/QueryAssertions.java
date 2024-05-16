@@ -205,6 +205,8 @@ public final class QueryAssertions
             }
         }
 
+        assertEquals(actualResults.getTypes(), expectedResults.getTypes(), format("Actual and expected types do not match"));
+
         List<MaterializedRow> actualRows = actualResults.getMaterializedRows();
         List<MaterializedRow> expectedRows = expectedResults.getMaterializedRows();
 
