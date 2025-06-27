@@ -188,6 +188,7 @@ public class QueuedStatementResource
      * Presto performs lazy execution. The submission of a query returns
      * a placeholder for the result set, but the query gets
      * scheduled/dispatched only when the client polls for results
+     *
      * @param statement The statement or sql query string submitted
      * @param xForwardedProto Forwarded protocol (http or https)
      * @param servletRequest The http request
@@ -205,7 +206,14 @@ public class QueuedStatementResource
             @Context HttpServletRequest servletRequest,
             @Context UriInfo uriInfo)
     {
+        log.info("Got POST request: \n" +
+                "statement: " + statement +
+                "\n xForwardedProto: " + xForwardedProto +
+                "\n xPrestoPrefixUrl: " + xPrestoPrefixUrl +
+                "\n servletRequest" + servletRequest +
+                "\n uriInfo" + uriInfo);
         if (isNullOrEmpty(statement)) {
+            log.error("statement is empty");
             throw badRequest(BAD_REQUEST, "SQL statement is empty");
         }
 
@@ -220,7 +228,7 @@ public class QueuedStatementResource
                 Optional.of(sessionPropertyManager));
         Query query = new Query(statement, sessionContext, dispatchManager, executingQueryResponseProvider, 0);
         queries.put(query.getQueryId(), query);
-
+        log.info("post requestwas okay");
         return withCompressionConfiguration(Response.ok(query.getInitialQueryResults(uriInfo, xForwardedProto, xPrestoPrefixUrl, binaryResults)), compressionEnabled).build();
     }
 
@@ -278,6 +286,7 @@ public class QueuedStatementResource
 
     /**
      * HTTP endpoint for re-processing a failed query
+     *
      * @param queryId Query Identifier of the query to be retried
      * @param xForwardedProto Forwarded protocol (http or https)
      * @param uriInfo {@link javax.ws.rs.core.UriInfo}
@@ -327,6 +336,7 @@ public class QueuedStatementResource
 
     /**
      * HTTP endpoint for retrieving the status of a submitted query
+     *
      * @param queryId Query Identifier of query whose status is polled
      * @param token Monotonically increasing token that identifies the next batch of query results
      * @param slug Unique security token generated for each query that controls access to that query's results
@@ -349,10 +359,21 @@ public class QueuedStatementResource
             @Context UriInfo uriInfo,
             @Suspended AsyncResponse asyncResponse)
     {
+        log.info("Got GET request: \n" +
+                "queryId: " + queryId +
+                "\ntoken: " + token +
+                "\nslug: " + slug +
+                "\nmaxWait: " + maxWait +
+                "\nbinaryResults: " + binaryResults +
+                "\n xForwardedProto: " + xForwardedProto +
+                "\n xPrestoPrexixUrl" + xPrestoPrefixUrl +
+                "\n uriInfo" + uriInfo);
         abortIfPrefixUrlInvalid(xPrestoPrefixUrl);
 
         Query query = getQuery(queryId, slug);
+        log.info("waiting for rate limiter");
         ListenableFuture<Double> acquirePermitAsync = queryRateLimiter.acquire(queryId);
+        log.info("waiting for dispatch");
         ListenableFuture<?> waitForDispatchedAsync = transformAsync(
                 acquirePermitAsync,
                 acquirePermitTimeSeconds -> {
@@ -372,10 +393,12 @@ public class QueuedStatementResource
                 ignored -> query.toResponse(token, uriInfo, xForwardedProto, xPrestoPrefixUrl, WAIT_ORDERING.min(MAX_WAIT_TIME, maxWait), compressionEnabled, nestedDataSerializationEnabled, binaryResults),
                 responseExecutor);
         bindAsyncResponse(asyncResponse, queryResultsFuture, responseExecutor);
+        log.info("got query response");
     }
 
     /**
      * HTTP endpoint to cancel execution of a query in flight
+     *
      * @param queryId Query Identifier of query to be canceled
      * @param token Monotonically increasing token that identifies the next batch of query results
      * @param slug Unique security token generated for each query that controls access to that query's results
@@ -397,6 +420,12 @@ public class QueuedStatementResource
     {
         Query query = queries.get(queryId);
         if (query == null || !query.getSlug().equals(slug)) {
+            if (query == null) {
+                log.error("query not found");
+            }
+            if (!query.getSlug().equals(slug)) {
+                log.error("slugs did not match, expected: " + query.getSlug() + "but received " + slug);
+            }
             throw badRequest(NOT_FOUND, "Query not found");
         }
         return query;
@@ -546,6 +575,7 @@ public class QueuedStatementResource
 
         /**
          * Returns a placeholder for query results for the client to poll
+         *
          * @param uriInfo {@link javax.ws.rs.core.UriInfo}
          * @param xForwardedProto Forwarded protocol (http or https)
          * @return {@link com.facebook.presto.client.QueryResults}
@@ -576,6 +606,7 @@ public class QueuedStatementResource
             long lastToken = this.lastToken.get();
             // token should be the last token or the next token
             if (token != lastToken && token != lastToken + 1) {
+                log.error("token was not last token or next token.  token was: " + token + " last token was: " + lastToken);
                 throw new WebApplicationException(Response.Status.GONE);
             }
             // advance (or stay at) the token
@@ -591,12 +622,20 @@ public class QueuedStatementResource
                             xPrestoPrefixUrl,
                             DispatchInfo.waitingForPrerequisites(NO_DURATION, NO_DURATION),
                             binaryResults);
+                    if (querySubmissionFuture == null) {
+                        log.info("query submission future was null.");
+                    }
+                    if (!querySubmissionFuture.isDone()) {
+                        log.info("query submission future was not done.");
+                    }
+                    log.info("query submission has not finished. Returning a simple empty result");
                     return immediateFuture(withCompressionConfiguration(Response.ok(queryResults), compressionEnabled).build());
                 }
             }
 
             Optional<DispatchInfo> dispatchInfo = dispatchManager.getDispatchInfo(queryId);
             if (!dispatchInfo.isPresent()) {
+                log.error("no dispatch info found");
                 // query should always be found, but it may have just been determined to be abandoned
                 return immediateFailedFuture(new WebApplicationException(Response
                         .status(NOT_FOUND)
@@ -604,6 +643,7 @@ public class QueuedStatementResource
             }
 
             if (waitForDispatched().isDone()) {
+                log.info("finished dispatching");
                 Optional<ListenableFuture<Response>> executingQueryResponse = executingQueryResponseProvider.waitForExecutingResponse(
                         queryId,
                         slug,

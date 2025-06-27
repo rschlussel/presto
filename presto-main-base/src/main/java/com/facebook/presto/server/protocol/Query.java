@@ -320,9 +320,11 @@ class Query
 
     public synchronized ListenableFuture<QueryResults> waitForResults(long token, UriInfo uriInfo, String scheme, Duration wait, DataSize targetResultSize, boolean binaryResults)
     {
+        log.info("waiting for results");
         // before waiting, check if this request has already been processed and cached
         Optional<QueryResults> cachedResult = getCachedResult(token);
         if (cachedResult.isPresent()) {
+            log.info("got cached result");
             return immediateFuture(cachedResult.get());
         }
 

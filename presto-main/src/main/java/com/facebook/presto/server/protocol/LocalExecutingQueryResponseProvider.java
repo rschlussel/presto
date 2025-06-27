@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.server.protocol;
 
+import com.facebook.airlift.log.Logger;
 import com.facebook.presto.dispatcher.DispatchInfo;
 import com.facebook.presto.spi.QueryId;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -33,6 +34,7 @@ import static java.util.Objects.requireNonNull;
 public class LocalExecutingQueryResponseProvider
         implements ExecutingQueryResponseProvider
 {
+    private static final Logger log = Logger.get(LocalExecutingQueryResponseProvider.class);
     private final LocalQueryProvider queryProvider;
 
     @Inject
@@ -60,6 +62,7 @@ public class LocalExecutingQueryResponseProvider
             query = queryProvider.getQuery(queryId, slug);
         }
         catch (WebApplicationException e) {
+            log.error("got exception when getting Query: ", e);
             return Optional.empty();
         }
         return Optional.of(transform(

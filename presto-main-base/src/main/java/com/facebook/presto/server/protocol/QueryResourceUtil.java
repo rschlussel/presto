@@ -191,6 +191,7 @@ public final class QueryResourceUtil
                 URL url = new URL(xPrestoPrefixUrl);
             }
             catch (java.net.MalformedURLException e) {
+                log.error("malformed url: " + xPrestoPrefixUrl, e);
                 throw new WebApplicationException(
                         Response.status(Response.Status.BAD_REQUEST)
                                 .type(TEXT_PLAIN_TYPE)
