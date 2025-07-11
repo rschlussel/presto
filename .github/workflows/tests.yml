@@ -8,8 +8,8 @@ env:
   CONTINUOUS_INTEGRATION: true
   MAVEN_OPTS: "-Xmx1024M -XX:+ExitOnOutOfMemoryError"
   MAVEN_INSTALL_OPTS: "-Xmx2G -XX:+ExitOnOutOfMemoryError"
-  MAVEN_FAST_INSTALL: "-B -V --quiet -T 1C -DskipTests -Dair.check.skip-all --no-transfer-progress -Dmaven.javadoc.skip=true -DskipUI"
-  MAVEN_TEST: "-B -Dair.check.skip-all -Dmaven.javadoc.skip=true -DLogTestDurationListener.enabled=true --no-transfer-progress --fail-at-end -DskipUI"
+  MAVEN_FAST_INSTALL: "-B -V --quiet -T 1C -DskipTests -Dair.check.skip-all --no-transfer-progress -Dmaven.javadoc.skip=true"
+  MAVEN_TEST: "-B -Dair.check.skip-all -Dmaven.javadoc.skip=true -DLogTestDurationListener.enabled=true --no-transfer-progress --fail-at-end"
   RETRY: .github/bin/retry
 
 jobs:
@@ -21,6 +21,7 @@ jobs:
     # Set job outputs to values from filter step
     outputs:
       codechange: ${{ steps.filter.outputs.codechange }}
+      uichange: ${{ steps.filter.outputs.uichange }}
     steps:
     # For pull requests it's not necessary to checkout the code
     - uses: dorny/paths-filter@v2
@@ -29,6 +30,12 @@ jobs:
         filters: |
           codechange:
             - '!presto-docs/**'
+    - uses: dorny/paths-filter@v2
+      id: ui_filter
+      with:
+        filters: |
+          uichange:
+            - 'presto-ui/**'
 
   test:
     runs-on: ubuntu-latest
@@ -46,7 +53,7 @@ jobs:
           - ":presto-tests -P ci-only-distributed-queries"
           - ":presto-tests -P ci-only-aggregation-queries"
           - ":presto-tests -P ci-only-plan-determinism"
-          - ":presto-tests -P ci-only-resource-manager" 
+          - ":presto-tests -P ci-only-resource-manager"
           - ":presto-accumulo"
           - ":presto-cassandra -P test-cassandra-integration-smoke-test"
           - ":presto-hive"
@@ -89,8 +96,19 @@ jobs:
       - name: Maven Install
         if: needs.changes.outputs.codechange == 'true'
         run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          if [ "${{ needs.changes.outputs.uichange }}" != "true" ]; then
+            EXTRA_ARGS="-DskipUI"
+          else
+            EXTRA_ARGS=""
+          fi
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS} ${EXTRA_ARGS}"
           ./mvnw install ${MAVEN_FAST_INSTALL} -am -pl $(echo '${{ matrix.modules }}' | cut -d' ' -f1)
       - name: Maven Tests
         if: needs.changes.outputs.codechange == 'true'
-        run: ./mvnw test ${MAVEN_TEST} -pl ${{ matrix.modules }}
+        run: |
+          if [ "${{ needs.changes.outputs.uichange }}" != "true" ]; then
+            EXTRA_ARGS="-DskipUI"
+          else
+            EXTRA_ARGS=""
+          fi
+          ./mvnw test ${MAVEN_TEST} ${EXTRA_ARGS} -pl ${{ matrix.modules }}
