@@ -120,6 +120,12 @@ public class TestVarbinaryFunctions
     }
 
     @Test
+    public void testFromBase64Different()
+    {
+        assertFunction("from_base64('Q9HaBAE++Hcv5IYrAb4yQszpWP76aLp2TJNMTqBbn3mVgKdsZyelO5+OoQpcZopWr87juCkgPZbKQxVE')", VARBINARY, sqlVarbinary(""));
+    }
+
+    @Test
     public void testToBase64Url()
     {
         assertFunction("to_base64url(CAST('' AS VARBINARY))", VARCHAR, encodeBase64Url(""));

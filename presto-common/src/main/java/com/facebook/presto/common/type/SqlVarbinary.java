@@ -16,12 +16,14 @@ package com.facebook.presto.common.type;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Arrays;
+import java.util.logging.Logger;
 
 import static java.util.Objects.requireNonNull;
 
 public final class SqlVarbinary
         implements Comparable<SqlVarbinary>
 {
+    private static final Logger log = Logger.getLogger(SqlVarbinary.class.getSimpleName());
     private static final String BYTE_SEPARATOR = " ";
     private static final String WORD_SEPARATOR = "   ";
 
@@ -30,6 +32,8 @@ public final class SqlVarbinary
     public SqlVarbinary(byte[] bytes)
     {
         this.bytes = requireNonNull(bytes, "bytes is null");
+        // I think this will be very noisy, but I'm not sure how to log this in a less noisy way.
+        log.info("SqlVarbinary: " + this.toString());
     }
 
     @Override

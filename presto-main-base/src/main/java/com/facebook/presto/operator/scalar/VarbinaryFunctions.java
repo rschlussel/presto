@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator.scalar;
 
+import com.facebook.airlift.log.Logger;
 import com.facebook.presto.common.type.StandardTypes;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.function.Description;
@@ -27,16 +28,20 @@ import io.airlift.slice.Slices;
 import io.airlift.slice.SpookyHashV2;
 import io.airlift.slice.XxHash64;
 
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.zip.CRC32;
 
 import static com.facebook.presto.operator.scalar.HmacFunctions.computeHash;
 import static com.facebook.presto.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
 import static com.facebook.presto.util.Failures.checkCondition;
+import static com.google.common.base.MoreObjects.toStringHelper;
 import static io.airlift.slice.Slices.EMPTY_SLICE;
 
 public final class VarbinaryFunctions
 {
+    private static final Logger log = Logger.get(VarbinaryFunctions.class);
+
     private VarbinaryFunctions() {}
 
     @Description("length of the given binary")
@@ -65,14 +70,49 @@ public final class VarbinaryFunctions
     public static Slice fromBase64Varchar(@SqlType("varchar(x)") Slice slice)
     {
         try {
-            if (slice.hasByteArray()) {
-                return Slices.wrappedBuffer(Base64.getDecoder().decode(slice.toByteBuffer()));
+            String string = slice.toStringUtf8();
+            if (string.equals(
+                    // this one returns wrong results
+                    "Q9HaBAE++Hcv5IYrAb4yQszpWP76aLp2TJNMTqBbn3mVgKdsZyelO5+OoQpcZopWr87juCkgPZbKQxVE") ||
+                    string.equals(
+                            // this one returns correct results
+                            "Q9HaBAE++HbvXavyUwHyI6jhjD6dOk7EDi5jh1OfvZ0/ECxydrGZ79DGJn1wO4XLQlDH4neHZlKKYlYL")) {
+                log.info("inputSlice: " + getSliceInfo(slice));
             }
-            return Slices.wrappedBuffer(Base64.getDecoder().decode(slice.getBytes()));
+            if (slice.hasByteArray()) {
+                log.info("has byteArray");
+                ByteBuffer byteBuffer = slice.toByteBuffer();
+                log.info("encoded byteBuffer: " + byteBuffer);
+                ByteBuffer decoded = Base64.getDecoder().decode(byteBuffer);
+                log.info("decoded byteBuffer: " + decoded);
+                Slice wrappedDecodedBuffer = Slices.wrappedBuffer(decoded.slice());
+                log.info("wrappedDecodedSlice: " + getSliceInfo(wrappedDecodedBuffer));
+                return wrappedDecodedBuffer;
+            }
+            byte[] bytes = slice.getBytes();
+            log.info("bytes: " + bytes);
+            byte[] decodedBytes = Base64.getDecoder().decode(bytes);
+            log.info("decodedBytes: " + decodedBytes);
+            Slice wrappedDecodedBytes = Slices.wrappedBuffer(decodedBytes);
+            log.info("wrappedDecodedBytes: " + getSliceInfo(wrappedDecodedBytes));
+            return wrappedDecodedBytes;
         }
         catch (IllegalArgumentException e) {
             throw new PrestoException(INVALID_FUNCTION_ARGUMENT, e);
         }
+    }
+
+    private static String getSliceInfo(Slice slice)
+    {
+        return toStringHelper(Slice.class)
+                .add("utf8 value", slice.toStringUtf8())
+                .add("to byteArray: ", slice.getBytes())
+                .add("base", slice.getBase())
+                .add("address", slice.getAddress())
+                .add("length", slice.length())
+                .add("retainedSize", slice.getRetainedSize())
+                .add("isCompact", slice.isCompact())
+                .toString();
     }
 
     @Description("decode base64 encoded binary data")
@@ -122,9 +162,9 @@ public final class VarbinaryFunctions
     public static Slice fromBase64UrlVarbinary(@SqlType(StandardTypes.VARBINARY) Slice slice)
     {
         try {
-            if (slice.hasByteArray()) {
-                return Slices.wrappedBuffer(Base64.getUrlDecoder().decode(slice.toByteBuffer()));
-            }
+//            if (slice.hasByteArray()) {
+//                return Slices.wrappedBuffer(Base64.getUrlDecoder().decode(slice.toByteBuffer()));
+//            }
             return Slices.wrappedBuffer(Base64.getUrlDecoder().decode(slice.getBytes()));
         }
         catch (IllegalArgumentException e) {

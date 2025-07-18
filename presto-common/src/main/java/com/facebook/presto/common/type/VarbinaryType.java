@@ -18,12 +18,15 @@ import com.facebook.presto.common.block.BlockBuilder;
 import com.facebook.presto.common.function.SqlFunctionProperties;
 import io.airlift.slice.Slice;
 
+import java.util.logging.Logger;
+
 import static com.facebook.presto.common.type.TypeSignature.parseTypeSignature;
 
 public final class VarbinaryType
         extends AbstractVariableWidthType
 {
     public static final VarbinaryType VARBINARY = new VarbinaryType();
+    private static final Logger log = Logger.getLogger(VarbinaryType.class.getSimpleName());
 
     private VarbinaryType()
     {
@@ -97,7 +100,10 @@ public final class VarbinaryType
     @Override
     public Slice getSlice(Block block, int position)
     {
-        return block.getSlice(position, 0, block.getSliceLength(position));
+        Slice slice = block.getSlice(position, 0, block.getSliceLength(position));
+        // I think this will be very noisy, but I'm not sure how to log this in a less noisy way.
+        log.info("VarbinaryType.getSlice(" + block + ", " + position + "): " + slice);
+        return slice;
     }
 
     @Override
