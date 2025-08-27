@@ -56,6 +56,56 @@ public class Subfield
         }
     }
 
+    public static final class AllKeysSubscripts
+            implements PathElement
+    {
+        private static final AllKeysSubscripts ALL_KEYS_SUBSCRIPTS = new AllKeysSubscripts();
+
+        private AllKeysSubscripts() {}
+
+        public static AllKeysSubscripts getInstance()
+        {
+            return ALL_KEYS_SUBSCRIPTS;
+        }
+
+        @Override
+        public boolean isSubscript()
+        {
+            return true;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "[K*]";
+        }
+    }
+
+    public static final class AllValuesSubscripts
+            implements PathElement
+    {
+        private static final AllValuesSubscripts ALL_VALUES_SUBSCRIPTS = new AllValuesSubscripts();
+
+        private AllValuesSubscripts() {}
+
+        public static AllValuesSubscripts getInstance()
+        {
+            return ALL_VALUES_SUBSCRIPTS;
+        }
+
+        @Override
+        public boolean isSubscript()
+        {
+            return true;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "[V*]";
+        }
+    }
+
     public static final class NoSubfield
             implements PathElement
     {

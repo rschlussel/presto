@@ -758,6 +758,17 @@ public class PushdownSubfields
                         }
                     }
                 }
+
+                boolean isPushdownSubfieldsForMapKeysAndValuesEnabled = true;
+                if (isPushdownSubfieldsForMapFunctionsEnabled && expression instanceof CallExpression && functionResolution.isMapKeysFunction(((CallExpression) expression).getFunctionHandle())) {
+                    VariableReferenceExpression mapVariable = (VariableReferenceExpression) ((CallExpression) expression).getArguments().get(0);
+                    return Optional.of(ImmutableList.of(new Subfield(mapVariable.getName(), ImmutableList.of(Subfield.AllKeysSubscripts.getInstance()))));
+                }
+
+                if (isPushdownSubfieldsForMapKeysAndValuesEnabled && expression instanceof CallExpression && functionResolution.isMapValuesFunction(((CallExpression) expression).getFunctionHandle())) {
+                    VariableReferenceExpression mapVariable = (VariableReferenceExpression) ((CallExpression) expression).getArguments().get(0);
+                    return Optional.of(ImmutableList.of(new Subfield(mapVariable.getName(), ImmutableList.of(Subfield.AllValuesSubscripts.getInstance()))));
+                }
                 return Optional.empty();
             }
         }
